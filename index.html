@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Scanner">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
 <title>Lager-Scanner</title>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
@@ -16,124 +17,180 @@
   --bg:#eef0ec; --surface:#ffffff; --fg:#17191a; --muted:#5d6461; --line:#d3d7d2;
   --label:#f5c400; --label-fg:#141414; --accent:#141414; --accent-fg:#f5c400;
   --bad:#b3261e; --ok:#2e6b3a;
+  --c-in:#2e6b3a; --c-out:#b3261e; --c-inv:#1f5f9e; --c-move:#8a5a00;
   --f-display:"Barlow Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif;
-  --f-body:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;
+  --f-body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-mono:ui-monospace,Menlo,"SF Mono",Consolas,monospace;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#121413; --surface:#1c1f1e; --fg:#eceeeb; --muted:#9aa29e; --line:#2f3432;
-  --accent:#f5c400; --accent-fg:#141414; --bad:#ff8a80; --ok:#8fd19e; color-scheme:dark}}
+  --accent:#f5c400; --accent-fg:#141414; --bad:#ff8a80; --ok:#8fd19e;
+  --c-in:#8fd19e; --c-out:#ff8a80; --c-inv:#8cbcf0; --c-move:#f0c060; color-scheme:dark}}
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.4;
-  padding:max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.35;
+  padding:max(10px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));
   -webkit-text-size-adjust:100%}
-.wrap{max-width:600px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
-header{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
-h1{font-family:var(--f-display);font-weight:800;font-size:26px;white-space:nowrap;margin:0;text-transform:uppercase;letter-spacing:.02em}
-.count{color:var(--muted);font-size:14px;white-space:nowrap}
+.wrap{max-width:600px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:40px}
+h1{font-family:var(--f-display);font-weight:800;font-size:24px;margin:0;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.count{color:var(--muted);font-size:13px;white-space:nowrap}
 .count b{color:var(--fg)}
+.back{font:600 15px var(--f-body);padding:8px 12px;border-radius:10px;border:1.5px solid var(--fg);background:transparent;color:var(--fg);cursor:pointer;white-space:nowrap}
 
-.cam{position:relative;background:#000;border-radius:14px;overflow:hidden;aspect-ratio:4/3;max-width:100%}
-.cam video{width:100%;height:100%;object-fit:cover;display:block}
-.cam .frame{position:absolute;left:10%;right:10%;top:32%;bottom:32%;border:3px solid var(--label);border-radius:8px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
-.cam .flash{position:absolute;inset:0;background:var(--label);opacity:0;pointer-events:none;transition:opacity .25s}
-.cam .flash.on{opacity:.45;transition:none}
-.cam .camMsg{position:absolute;left:0;right:0;bottom:10px;text-align:center;color:#fff;font-size:14px;text-shadow:0 1px 2px #000}
+/* Hauptmenü */
+.menu{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.tile{min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:10px;min-height:118px;padding:14px;border-radius:14px;border:0;
+  background:var(--surface);color:var(--fg);cursor:pointer;text-align:left;border-left:8px solid var(--tc)}
+.tile .n{font-family:var(--f-display);font-weight:800;font-size:clamp(16px,5vw,28px);max-width:100%;text-transform:uppercase;letter-spacing:.02em;line-height:1}
+.tile .d{font-size:12px;color:var(--muted)}
+.tile .k{font-family:var(--f-mono);font-size:13px;font-weight:700;color:var(--tc)}
+.tile.wide{grid-column:1/-1;min-height:64px;flex-direction:row;align-items:center;border-left-color:var(--fg)}
 
-.bigBtn{display:flex;align-items:center;justify-content:center;gap:10px;min-height:64px;border-radius:14px;border:0;width:100%;
-  background:var(--accent);color:var(--accent-fg);font-family:var(--f-display);font-weight:700;font-size:24px;text-transform:uppercase;letter-spacing:.03em;cursor:pointer}
-.bigBtn.stop{background:var(--surface);color:var(--fg);border:2px solid var(--fg)}
+/* Schritt-Ansicht */
+.steps{display:flex;gap:4px}
+.steps span{flex:1;height:6px;border-radius:3px;background:var(--line)}
+.steps span.done{background:var(--tc)}
+.steps span.cur{background:var(--fg)}
+.prompt{font-family:var(--f-display);font-weight:800;font-size:30px;text-transform:uppercase;line-height:1.05;margin:2px 0 0}
+.prompt small{display:block;font-family:var(--f-body);font-weight:500;font-size:13px;color:var(--muted);text-transform:none;margin-bottom:4px}
+.scanIn{font:600 22px var(--f-mono);padding:14px 12px;border:2.5px solid var(--tc);border-radius:12px;background:var(--surface);color:var(--fg);width:100%;min-width:0}
+.scanIn:focus{outline:none;box-shadow:0 0 0 4px color-mix(in srgb,var(--tc) 30%,transparent)}
+.qtyIn{font-family:var(--f-display);font-size:40px;font-weight:800;text-align:center}
 .row{display:flex;gap:8px}
 .row > *{min-width:0}
-input,select{font:16px var(--f-body);padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--fg);width:100%}
-input:focus{outline:none;border-color:var(--fg)}
-#codeInput{font-family:var(--f-mono);font-size:18px;flex:1}
-.btn{font:600 16px var(--f-body);padding:11px 16px;border-radius:10px;border:1.5px solid var(--fg);background:transparent;color:var(--fg);cursor:pointer;white-space:nowrap}
+.btn{font:600 15px var(--f-body);padding:12px 14px;border-radius:10px;border:1.5px solid var(--fg);background:transparent;color:var(--fg);cursor:pointer;white-space:nowrap}
 .btn.solid{background:var(--fg);color:var(--bg)}
 .btn.danger{border-color:var(--bad);color:var(--bad)}
-.field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:500;flex:1}
-.toggle{display:flex;align-items:center;gap:10px;font-size:15px}
-.toggle input{width:22px;height:22px;accent-color:var(--fg)}
+.btn.big{width:100%;min-height:58px;font-family:var(--f-display);font-size:22px;text-transform:uppercase;letter-spacing:.03em}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.keys button{min-height:52px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:700 24px var(--f-display);cursor:pointer}
+.sum{background:var(--surface);border-radius:12px;padding:4px 12px}
+.sum div{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.sum div:last-child{border-bottom:0}
+.sum .l{color:var(--muted);font-size:13px;white-space:nowrap}
+.sum .v{font-family:var(--f-mono);font-weight:700;word-break:break-all;text-align:right}
+.sum .v.cur{color:var(--muted);font-weight:400}
 
-.last{background:var(--label);color:var(--label-fg);border-radius:6px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px}
-.last .lc{font-family:var(--f-mono);font-size:20px;font-weight:600;word-break:break-all}
-.last .lq{font-family:var(--f-display);font-weight:800;font-size:34px;white-space:nowrap}
-.last .lk{font-size:12px;text-transform:uppercase;letter-spacing:.08em;opacity:.7}
+.cam{position:relative;background:#000;border-radius:14px;overflow:hidden;aspect-ratio:16/9}
+.cam video{width:100%;height:100%;object-fit:cover;display:block}
+.cam .frame{position:absolute;left:8%;right:8%;top:30%;bottom:30%;border:3px solid var(--label);border-radius:8px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
 
-h2{font-family:var(--f-display);font-weight:700;font-size:18px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:6px 0 0}
+.ok{background:var(--tc);color:#fff;border-radius:10px;padding:10px 12px;font-weight:600}
+@media (prefers-color-scheme:dark){.ok{color:#141414}}
+
+/* Liste */
+h2{font-family:var(--f-display);font-weight:700;font-size:17px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:6px 0 0}
 .list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
-.list li{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 0;border-bottom:1px solid var(--line);align-items:center}
-.list .c{font-family:var(--f-mono);font-size:16px;min-width:0;word-break:break-all}
-.list .m{color:var(--muted);font-size:13px;grid-column:1;min-width:0}
-.qty{display:flex;align-items:center;gap:4px;grid-row:1/3;grid-column:2}
-.qty button{width:36px;height:36px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-size:20px;line-height:1;cursor:pointer}
-.qty span{min-width:34px;text-align:center;font-family:var(--f-display);font-weight:700;font-size:22px}
+.list li{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;padding:9px 0;border-bottom:1px solid var(--line);align-items:center}
+.tag{font:700 11px var(--f-body);text-transform:uppercase;letter-spacing:.05em;color:#fff;background:var(--tc);border-radius:4px;padding:3px 6px;grid-row:1/3}
+@media (prefers-color-scheme:dark){.tag{color:#141414}}
+.list .c{font-family:var(--f-mono);font-size:15px;font-weight:700;word-break:break-all;min-width:0}
+.list .m{color:var(--muted);font-size:12px;grid-column:2;min-width:0;word-break:break-all}
+.list .q{font-family:var(--f-display);font-weight:800;font-size:22px;white-space:nowrap}
+.list .del{grid-row:2;grid-column:3;justify-self:end;border:0;background:none;color:var(--bad);font-size:12px;cursor:pointer;padding:2px 0}
 .empty{color:var(--muted);padding:14px 0;text-align:center}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.filters button{font:600 13px var(--f-body);padding:6px 10px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.filters button.on{border-color:var(--fg);background:var(--fg);color:var(--bg)}
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.note{font-size:13px;color:var(--muted)}
+.note{font-size:12px;color:var(--muted)}
 .confirm{background:var(--surface);border:1.5px solid var(--bad);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
-.toast{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:15px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center}
+.toast{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:15px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center;z-index:9}
 .toast.on{opacity:1}
+.toast.err{background:var(--bad);color:#fff}
+#vStep,.stepMain,.stepSide{display:flex;flex-direction:column;gap:12px;min-width:0}
+.cam .camMsg{position:absolute;left:0;right:0;bottom:8px;text-align:center;color:#fff;font-size:14px;text-shadow:0 1px 3px #000}
+.cam .camFlash{position:absolute;inset:0;background:var(--label);opacity:0;pointer-events:none;transition:opacity .3s}
+.cam .camFlash.on{opacity:.5;transition:none}
+.cam.paused video{filter:grayscale(1) brightness(.45)}
+.cam.paused{aspect-ratio:auto;height:44px}
+.cam.paused .frame,.cam.paused .camFlash{display:none}
+.cam.paused .camMsg{bottom:12px}
+.cam{transition:height .2s}
+.toggle{display:flex;align-items:center;gap:10px;font-size:15px}
+.toggle input{width:22px;height:22px;accent-color:var(--fg);flex:none}
+body.ios .tile .k{display:none}
+body.ios .scanIn{font-size:18px}
+button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+/* iPad / Tablet */
+@media (min-width:740px){
+  .wrap{max-width:1000px}
+  .menu{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .tile{min-height:170px;padding:18px}
+  .tile .d{font-size:14px}
+  #vStep{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px;align-items:start}
+  .keys button{min-height:60px}
+  .prompt{font-size:36px}
+}
+@media (min-width:740px) and (orientation:portrait){
+  #vStep{grid-template-columns:minmax(0,1fr)}
+}
 [hidden]{display:none!important}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>Lager-Scanner</h1>
+    <button class="back" id="backBtn" type="button" hidden>‹ Menü</button>
+    <h1 id="title">Lager-Scanner</h1>
     <div class="count" id="count"></div>
   </header>
 
-  <div class="cam" id="cam" hidden>
-    <video id="video" playsinline muted autoplay></video>
-    <div class="frame"></div>
-    <div class="flash" id="flash"></div>
-    <div class="camMsg">Barcode in den gelben Rahmen halten</div>
-  </div>
-  <button class="bigBtn" id="camBtn" type="button">Kamera starten</button>
-  <label class="btn" style="text-align:center" id="photoLbl" hidden>Foto vom Barcode machen
-    <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
-  </label>
+  <!-- HAUPTMENÜ -->
+  <section id="vMenu" style="display:flex;flex-direction:column;gap:14px">
+    <div class="menu">
+      <button class="tile" data-mode="EIN" style="--tc:var(--c-in)" type="button"><span class="k">F1</span><span class="n">Einlagern</span><span class="d">Artikel → Lagerplatz → Menge</span></button>
+      <button class="tile" data-mode="AUS" style="--tc:var(--c-out)" type="button"><span class="k">F2</span><span class="n">Auslagern</span><span class="d">Artikel → Lagerplatz → Menge</span></button>
+      <button class="tile" data-mode="INV" style="--tc:var(--c-inv)" type="button"><span class="k">F3</span><span class="n">Inventur</span><span class="d">Lagerplatz → Artikel → Menge</span></button>
+      <button class="tile" data-mode="UML" style="--tc:var(--c-move)" type="button"><span class="k">F4</span><span class="n">Umlagern</span><span class="d">Artikel → Menge → von → an</span></button>
+      <button class="tile wide" id="listTile" type="button"><span class="n" style="font-size:22px">Buchungen &amp; CSV-Export</span><span class="k" style="color:var(--fg)">F5</span></button>
+    </div>
+    <label class="toggle"><input type="checkbox" id="camAutoChk"> Kamera automatisch starten (iPhone / iPad)</label>
+    <p class="note" id="iosHint" hidden>Tipp: In Safari <b>Teilen → Zum Home-Bildschirm</b> wählen, dann startet die App im Vollbild.</p>
+  </section>
 
-  <form class="row" id="manualForm" autocomplete="off">
-    <input id="codeInput" placeholder="Barcode / Nummer" enterkeyhint="done" aria-label="Barcode oder Artikelnummer">
-    <button class="btn solid" type="submit">Erfassen</button>
-  </form>
+  <!-- SCHRITT-ANSICHT -->
+  <section id="vStep" hidden>
+   <div class="stepMain">
+    <div class="steps" id="steps"></div>
+    <div class="prompt" id="prompt"></div>
+    <div class="cam" id="cam" hidden><video id="video" playsinline muted autoplay></video><div class="frame"></div><div class="camMsg" id="camMsg">Barcode in den gelben Rahmen halten</div><div class="camFlash" id="camFlash"></div></div>
+    <form id="stepForm" autocomplete="off" style="display:flex;flex-direction:column;gap:10px">
+      <input id="stepIn" class="scanIn" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="next">
+      <div class="keys" id="keys" hidden></div>
+      <button class="btn solid big" id="nextBtn" type="submit">Weiter</button>
+      <div class="row">
+        <button class="btn" id="prevBtn" type="button" style="flex:1">‹ Zurück</button>
+        <button class="btn" id="kbBtn" type="button" style="flex:1">Tastatur</button>
+        <button class="btn" id="camBtn" type="button" style="flex:1">Kamera</button>
+      </div>
+    </form>
+    <div class="ok" id="okMsg" hidden></div>
+   </div>
+   <div class="stepSide">
+    <div class="sum" id="sum"></div>
+    <h2 id="recentH">Letzte Buchungen</h2>
+    <ul class="list" id="recent"></ul>
+   </div>
+  </section>
 
-  <div class="row">
-    <label class="field">Lagerplatz (wird mitgespeichert)
-      <input id="platzInput" placeholder="z. B. Regal 10 / A-03">
-    </label>
-    <label class="field" style="flex:0 0 90px">Menge
-      <input id="qtyInput" type="number" inputmode="numeric" min="1" value="1">
-    </label>
-  </div>
-  <label class="toggle"><input type="checkbox" id="mergeChk" checked> Gleichen Barcode am gleichen Platz zusammenzählen</label>
-
-  <div class="last" id="last" hidden>
-    <div><div class="lk">Zuletzt erfasst</div><div class="lc" id="lastCode"></div></div>
-    <div class="lq" id="lastQty"></div>
-  </div>
-
-  <h2>Erfasste Artikel</h2>
-  <ul class="list" id="list"></ul>
-
-  <h2>Export</h2>
-  <div class="actions">
-    <button class="btn solid" id="xlsBtn" type="button">Excel (.xlsx)</button>
-    <button class="btn" id="jsonBtn" type="button">JSON-Datei</button>
-    <label class="btn" style="text-align:center">JSON laden
-      <input type="file" id="jsonInput" accept=".json,application/json" hidden>
-    </label>
-    <button class="btn danger" id="clearBtn" type="button">Liste leeren</button>
-  </div>
-  <div class="confirm" id="confirmBox" hidden>
-    <span>Alle <b id="confirmN"></b> Einträge löschen? Exportieren Sie die Liste vorher, wenn Sie sie noch brauchen.</span>
-    <div class="row"><button class="btn danger" id="confirmYes" type="button">Ja, löschen</button><button class="btn" id="confirmNo" type="button">Abbrechen</button></div>
-  </div>
-  <p class="note">Die Liste wird automatisch auf diesem iPhone gespeichert und bleibt auch nach dem Schließen erhalten. Mit „JSON-Datei“ sichern Sie sie als Datei, mit „Excel“ exportieren Sie sie für den PC.</p>
+  <!-- BUCHUNGEN / EXPORT -->
+  <section id="vList" hidden style="display:flex;flex-direction:column;gap:12px">
+    <div class="filters" id="filters"></div>
+    <div class="actions">
+      <button class="btn solid" id="csvBtn" type="button">CSV exportieren</button>
+      <button class="btn" id="xlsBtn" type="button">Excel (.xlsx)</button>
+    </div>
+    <ul class="list" id="list"></ul>
+    <button class="btn danger" id="clearBtn" type="button">Alle Buchungen löschen</button>
+    <div class="confirm" id="confirmBox" hidden>
+      <span>Alle <b id="confirmN"></b> Buchungen löschen? Vorher als CSV exportieren, falls Sie sie noch brauchen.</span>
+      <div class="row"><button class="btn danger" id="confirmYes" type="button">Ja, löschen</button><button class="btn" id="confirmNo" type="button">Abbrechen</button></div>
+    </div>
+    <p class="note">CSV: Semikolon-getrennt, UTF-8, öffnet direkt in Excel. Die Buchungen bleiben auf diesem Gerät gespeichert, bis Sie sie löschen.</p>
+  </section>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -151,175 +208,367 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 <script>
 (() => {
 const $ = id => document.getElementById(id);
-const KEY = "lagerScanner.v1";
-let items = [];          // {id, code, qty, platz, time}
-let settings = {platz:"", merge:true};
+const KEY = "lagerScanner.v2";
+
+/* ---------- Vorgänge & Schritte ---------- */
+const S = {
+  art:   {key:"artikel", label:"Artikelnummer", hint:"Artikel scannen",       type:"scan"},
+  platz: {key:"platz",   label:"Lagerplatz",    hint:"Lagerplatz scannen",    type:"scan"},
+  menge: {key:"menge",   label:"Menge",         hint:"Menge eingeben",        type:"qty"},
+  von:   {key:"von",     label:"Von Lagerplatz",hint:"Von Lagerplatz scannen",type:"scan"},
+  nach:  {key:"nach",    label:"An Lagerplatz", hint:"An Lagerplatz scannen", type:"scan"},
+};
+const MODES = {
+  EIN: {name:"Einlagern", color:"var(--c-in)",   steps:[S.art, S.platz, S.menge], restart:0},
+  AUS: {name:"Auslagern", color:"var(--c-out)",  steps:[S.art, S.platz, S.menge], restart:0},
+  INV: {name:"Inventur",  color:"var(--c-inv)",  steps:[S.platz, S.art, S.menge], restart:1}, // Lagerplatz bleibt, nächster Artikel
+  UML: {name:"Umlagern",  color:"var(--c-move)", steps:[S.art, S.menge, S.von, S.nach], restart:0},
+  ERF: {name:"Erfassung", color:"var(--muted)",  steps:[]},  // alte Daten aus Version 1
+};
+
+let bookings = [];   // {id, typ, artikel, menge, platz, von, nach, time}
+let mode = null, step = 0, vals = {}, kbOn = false, filter = "ALLE";
+// iPhone / iPad erkennen (iPadOS meldet sich als "Macintosh" mit Touch)
+const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const SKEY = "lagerScanner.settings";
+let settings = {camAuto: IOS};
+try { Object.assign(settings, JSON.parse(localStorage.getItem(SKEY) || "{}")); } catch(e){}
+const saveSettings = () => { try { localStorage.setItem(SKEY, JSON.stringify(settings)); } catch(e){} };
+if (IOS) document.body.classList.add("ios");
 
 /* ---------- Speicher ---------- */
 function load(){
-  try { const s = JSON.parse(localStorage.getItem(KEY) || "{}"); items = Array.isArray(s.items) ? s.items : []; settings = Object.assign(settings, s.settings || {}); } catch(e){}
+  try { const s = JSON.parse(localStorage.getItem(KEY) || "{}"); bookings = Array.isArray(s.bookings) ? s.bookings : []; } catch(e){}
+  // Übernahme der alten Liste (Version 1)
+  try {
+    const old = JSON.parse(localStorage.getItem("lagerScanner.v1") || "null");
+    if (old && Array.isArray(old.items) && old.items.length && !localStorage.getItem(KEY)){
+      bookings = old.items.map(i => ({id:i.id, typ:"ERF", artikel:i.code, menge:i.qty, platz:i.platz || "", von:"", nach:"", time:i.time}));
+      save();
+    }
+  } catch(e){}
 }
 function save(){
-  try { localStorage.setItem(KEY, JSON.stringify({items, settings})); }
-  catch(e){ toast("Speichern fehlgeschlagen – bitte JSON exportieren!"); }
+  try { localStorage.setItem(KEY, JSON.stringify({bookings})); }
+  catch(e){ toast("Speichern fehlgeschlagen – bitte CSV exportieren!", true); }
 }
 
-/* ---------- Anzeige ---------- */
+/* ---------- Hilfen ---------- */
 let toastT;
-function toast(t){ const el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("on"), 1800); }
-const fmt = ts => new Date(ts).toLocaleString("de-DE", {day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit"});
+function toast(t, err){ const el = $("toast"); el.textContent = t; el.classList.toggle("err", !!err); el.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("on"), err ? 2600 : 1600); }
 function mk(tag, cls, txt){ const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+const fmt = ts => new Date(ts).toLocaleString("de-DE", {day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit"});
+let actx;
+function tone(freq, dur, n){
+  try {
+    const A = window.AudioContext || window.webkitAudioContext; if (!A) return;
+    actx = actx || new A(); actx.resume && actx.resume();
+    for (let k = 0; k < (n || 1); k++){
+      const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + k * (dur + .05);
+      o.frequency.value = freq; g.gain.value = .15; o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur);
+    }
+  } catch(e){}
+}
+const beepOk  = () => { tone(1800, .08); try { navigator.vibrate && navigator.vibrate(50); } catch(e){} };
+const beepErr = () => { tone(300, .15, 2); try { navigator.vibrate && navigator.vibrate([80,60,80]); } catch(e){} };
+const clean = v => String(v).replace(/[\r\n\t]/g, "").trim();
 
-function render(){
-  const total = items.reduce((a, i) => a + i.qty, 0);
-  $("count").replaceChildren(mk("b", null, items.length), document.createTextNode(" Positionen · " + total + " Stück"));
-  const ul = $("list"); ul.replaceChildren();
-  if (!items.length){ ul.append(mk("li", "empty", "Noch nichts erfasst. Starten Sie die Kamera oder tippen Sie eine Nummer ein.")); return; }
-  for (const it of items){
-    const li = mk("li");
-    li.append(mk("span", "c", it.code));
-    const q = mk("div", "qty");
-    const minus = mk("button", null, "−"), plus = mk("button", null, "+");
-    minus.type = plus.type = "button";
-    minus.setAttribute("aria-label", "Menge verringern"); plus.setAttribute("aria-label", "Menge erhöhen");
-    minus.onclick = () => { it.qty--; if (it.qty <= 0) items = items.filter(x => x !== it); save(); render(); };
-    plus.onclick = () => { it.qty++; save(); render(); };
-    q.append(minus, mk("span", null, it.qty), plus);
-    li.append(q);
-    li.append(mk("span", "m", [it.platz, fmt(it.time)].filter(Boolean).join(" · ")));
+/* ---------- Ansichten ---------- */
+function show(view){
+  for (const v of ["vMenu", "vStep", "vList"]) $(v).hidden = v !== view;
+  $("backBtn").hidden = view === "vMenu";
+  stopCam();
+}
+function goMenu(fromPop){
+  mode = null; show("vMenu"); $("title").textContent = "Lager-Scanner"; renderCount();
+  if (!fromPop && history.state) history.back();
+}
+function pushView(){ if (!history.state) history.pushState({v:1}, ""); }
+window.addEventListener("popstate", () => { if (!$("vMenu").hidden) return; goMenu(true); });
+$("backBtn").addEventListener("click", () => goMenu());
+
+function renderCount(){
+  $("count").replaceChildren(mk("b", null, bookings.length), document.createTextNode(" Buchungen"));
+}
+
+/* ---------- Vorgang durchführen ---------- */
+function startMode(m){
+  mode = m; step = 0; vals = {}; kbOn = false;
+  const M = MODES[m];
+  document.documentElement.style.setProperty("--tc", M.color);
+  $("title").textContent = M.name;
+  $("okMsg").hidden = true;
+  show("vStep"); pushView(); renderStep();
+  if (settings.camAuto) startCam();
+}
+function renderStep(){
+  const M = MODES[mode], st = M.steps[step];
+  // Fortschritt
+  $("steps").replaceChildren(...M.steps.map((_, i) => mk("span", i < step ? "done" : i === step ? "cur" : "")));
+  // Aufforderung
+  const p = $("prompt"); p.replaceChildren(mk("small", null, "Schritt " + (step + 1) + " von " + M.steps.length), document.createTextNode(st.hint));
+  // Eingabefeld
+  const inp = $("stepIn");
+  inp.value = st.type === "qty" ? "" : "";
+  inp.placeholder = st.type === "qty" ? "0" : st.label + " scannen …";
+  inp.classList.toggle("qtyIn", st.type === "qty");
+  // Ohne "Tastatur" bleibt die Bildschirmtastatur zu – der Hardware-Scanner tippt trotzdem hinein
+  inp.setAttribute("inputmode", kbOn ? (st.type === "qty" ? "numeric" : "text") : "none");
+  inp.setAttribute("enterkeyhint", step === M.steps.length - 1 ? "done" : "next");
+  $("keys").hidden = st.type !== "qty";
+  updateCamState();
+  $("kbBtn").classList.toggle("solid", kbOn);
+  $("prevBtn").textContent = step === 0 ? "‹ Abbrechen" : "‹ Zurück";
+  $("nextBtn").textContent = step === M.steps.length - 1 ? "Buchen" : "Weiter";
+  // Zusammenfassung
+  const sum = $("sum"); sum.replaceChildren();
+  M.steps.forEach((s, i) => {
+    const d = mk("div"); d.append(mk("span", "l", s.label));
+    const v = vals[s.key];
+    d.append(mk("span", "v" + (v == null ? " cur" : ""), v == null ? (i === step ? "…" : "–") : String(v)));
+    sum.append(d);
+  });
+  renderRecent();
+  focusIn();
+}
+function focusIn(){ if (IOS && !kbOn) return;  // iOS: keine Tastatur aufpoppen lassen
+  if (!$("vStep").hidden) $("stepIn").focus(); setTimeout(() => { if (!$("vStep").hidden){ $("stepIn").focus(); } }, 30); }
+
+function submitStep(raw){
+  const M = MODES[mode], st = M.steps[step];
+  const v = clean(raw);
+  if (!v){ beepErr(); toast(st.label + " fehlt.", true); return focusIn(); }
+  if (st.type === "qty"){
+    const n = Number(v.replace(",", "."));
+    if (!/^\d+([.,]\d+)?$/.test(v) || !(n > 0)){ beepErr(); toast("Ungültige Menge – bitte Zahl eingeben.", true); $("stepIn").value = ""; return focusIn(); }
+    vals[st.key] = n;
+  } else {
+    if (/[^\x20-\x7E]/.test(v)){ beepErr(); toast("Ungültige Zeichen – nur Code 128 (ASCII).", true); $("stepIn").value = ""; return focusIn(); }
+    if (st.key === "nach" && v === vals.von){ beepErr(); toast("Ziel-Lagerplatz ist gleich Quell-Lagerplatz.", true); $("stepIn").value = ""; return focusIn(); }
+    vals[st.key] = v;
+  }
+  beepOk();
+  if (step < M.steps.length - 1){ step++; renderStep(); }
+  else book();
+}
+function book(){
+  const M = MODES[mode];
+  const b = {id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), typ: mode,
+    artikel: vals.artikel, menge: vals.menge, platz: vals.platz || "", von: vals.von || "", nach: vals.nach || "", time: Date.now()};
+  bookings.unshift(b); save(); renderCount();
+  const ok = $("okMsg");
+  ok.textContent = "✓ Gebucht: " + b.artikel + " × " + b.menge + (b.typ === "UML" ? "  " + b.von + " → " + b.nach : "  @ " + b.platz);
+  ok.hidden = false;
+  // Nächste Buchung: bei Inventur bleibt der Lagerplatz stehen
+  const keep = {};
+  for (let i = 0; i < M.restart; i++){ const k = M.steps[i].key; keep[k] = vals[k]; }
+  vals = keep; step = M.restart;
+  renderStep();
+}
+function prevStep(){
+  if (step === 0) return goMenu();
+  step--; delete vals[MODES[mode].steps[step].key]; $("okMsg").hidden = true; renderStep();
+}
+
+$("stepForm").addEventListener("submit", e => { e.preventDefault(); const v = $("stepIn").value; $("stepIn").value = ""; submitStep(v); });
+$("prevBtn").addEventListener("click", prevStep);
+$("kbBtn").addEventListener("click", () => { kbOn = !kbOn; const v = $("stepIn").value; renderStep(); $("stepIn").value = v; });
+
+// Ziffernblock für die Menge
+(() => {
+  const k = $("keys");
+  for (const t of ["1","2","3","4","5","6","7","8","9","C","0","⌫"]){
+    const b = mk("button", null, t); b.type = "button";
+    b.addEventListener("click", () => {
+      const inp = $("stepIn");
+      if (t === "C") inp.value = ""; else if (t === "⌫") inp.value = inp.value.slice(0, -1); else inp.value += t;
+      focusIn();
+    });
+    k.append(b);
+  }
+})();
+
+// Fokus immer im Eingabefeld halten (für den Hardware-Scanner)
+document.addEventListener("click", e => {
+  if ($("vStep").hidden) return;
+  if (!e.target.closest("button,input,label,a")) focusIn();
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden){ const w = camWanted; stopCam(); camWanted = w; }
+  else { focusIn(); if (camWanted && !$("vStep").hidden) startCam(); }
+});
+// iOS: Ton erst nach erster Berührung freigeben
+const unlock = () => { try { const A = window.AudioContext || window.webkitAudioContext; if (A){ actx = actx || new A(); actx.resume(); } } catch(e){} };
+document.addEventListener("touchend", unlock, {once:true}); document.addEventListener("click", unlock, {once:true});
+
+// Tastenkürzel (PM86: F-Tasten bzw. Esc / Zurück)
+document.addEventListener("keydown", e => {
+  if (!$("vMenu").hidden){
+    const map = {F1:"EIN", F2:"AUS", F3:"INV", F4:"UML", "1":"EIN", "2":"AUS", "3":"INV", "4":"UML"};
+    if (map[e.key]){ e.preventDefault(); startMode(map[e.key]); }
+    else if (e.key === "F5" || e.key === "5"){ e.preventDefault(); openList(); }
+  } else if (e.key === "Escape"){ e.preventDefault(); $("vStep").hidden ? goMenu() : prevStep(); }
+});
+
+/* ---------- Letzte Buchungen ---------- */
+function renderList(ul, arr, withDel){
+  ul.replaceChildren();
+  if (!arr.length){ ul.append(mk("li", "empty", "Noch keine Buchungen.")); return; }
+  for (const b of arr){
+    const M = MODES[b.typ] || MODES.ERF;
+    const li = mk("li"); li.style.setProperty("--tc", M.color);
+    li.append(mk("span", "tag", M.name.slice(0, 3)));
+    li.append(mk("span", "c", b.artikel));
+    li.append(mk("span", "q", (b.typ === "AUS" ? "−" : b.typ === "EIN" ? "+" : "") + b.menge));
+    li.append(mk("span", "m", (b.typ === "UML" ? b.von + " → " + b.nach : b.platz) + " · " + fmt(b.time)));
+    if (withDel){
+      const d = mk("button", "del", "löschen"); d.type = "button";
+      d.addEventListener("click", () => { bookings = bookings.filter(x => x !== b); save(); renderCount(); renderAll(); toast("Buchung gelöscht."); });
+      li.append(d);
+    }
     ul.append(li);
   }
 }
+function renderRecent(){ renderList($("recent"), bookings.filter(b => b.typ === mode).slice(0, 5), false); }
 
-/* ---------- Erfassen ---------- */
-function beep(){
-  try {
-    const A = window.AudioContext || window.webkitAudioContext; if (!A) return;
-    beep.ctx = beep.ctx || new A();
-    const o = beep.ctx.createOscillator(), g = beep.ctx.createGain();
-    o.frequency.value = 1800; g.gain.value = .15; o.connect(g); g.connect(beep.ctx.destination);
-    o.start(); o.stop(beep.ctx.currentTime + .09);
-  } catch(e){}
-  try { navigator.vibrate && navigator.vibrate(60); } catch(e){}
-}
-function addCode(raw){
-  const code = String(raw).replace(/[\r\n\t]/g, "").trim();
-  if (!code) return;
-  const qty = Math.max(1, parseInt($("qtyInput").value, 10) || 1);
-  const platz = $("platzInput").value.trim();
-  let it = settings.merge ? items.find(i => i.code === code && i.platz === platz) : null;
-  if (it){ it.qty += qty; it.time = Date.now(); items = [it, ...items.filter(x => x !== it)]; }
-  else { it = {id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), code, qty, platz, time: Date.now()}; items.unshift(it); }
-  save(); render(); beep();
-  $("last").hidden = false; $("lastCode").textContent = code; $("lastQty").textContent = "× " + it.qty;
-  $("qtyInput").value = 1;
-}
-
-$("manualForm").addEventListener("submit", e => { e.preventDefault(); addCode($("codeInput").value); $("codeInput").value = ""; $("codeInput").focus(); });
-$("platzInput").addEventListener("change", () => { settings.platz = $("platzInput").value.trim(); save(); });
-$("mergeChk").addEventListener("change", () => { settings.merge = $("mergeChk").checked; save(); });
-
-/* ---------- Kamera (Live-Scan) ---------- */
-const F = ZXing.BarcodeFormat;
+/* ---------- Kamera (iPhone / iPad, nur Code 128) ---------- */
+// Die Kamera läuft während des ganzen Vorgangs weiter – so fragt iOS nicht bei jedem Schritt neu nach der Berechtigung.
+let camOn = false, camWanted = false, lastScan = {t:"", time:0};
 const hints = new Map();
-hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [F.EAN_13, F.EAN_8, F.CODE_128, F.CODE_39, F.CODE_93, F.UPC_A, F.UPC_E, F.ITF, F.CODABAR, F.QR_CODE, F.DATA_MATRIX]);
-hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-let reader = null, running = false, lastCode = "", lastTime = 0;
-
-async function startCam(){
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-    toast("Live-Kamera nicht verfügbar – nutzen Sie „Foto vom Barcode machen“.");
-    $("photoLbl").hidden = false; return;
-  }
-  reader = new ZXing.BrowserMultiFormatReader(hints, 150);
-  $("cam").hidden = false; $("camBtn").textContent = "Kamera stoppen"; $("camBtn").classList.add("stop"); running = true;
+try {
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.CODE_128]);
+  hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+} catch(e){}
+function curStep(){ return mode && MODES[mode].steps[step]; }
+function updateCamState(){
+  const st = curStep(), paused = !!st && st.type === "qty";
+  $("cam").classList.toggle("paused", paused);
+  $("camMsg").textContent = paused ? "Kamera pausiert – Menge eingeben" : (st ? st.label + " in den gelben Rahmen halten" : "");
+}
+function onCamResult(t){
+  const now = Date.now(), st = curStep();
+  if (!st || st.type === "qty" || $("vStep").hidden) return;
+  if (t === lastScan.t && now - lastScan.time < 2500) return;     // gleicher Code noch im Bild
+  if (now - lastScan.time < 700) return;                           // kurze Pause nach jedem Scan
+  if (Object.values(vals).includes(t) && st.key !== "nach") return; // z. B. Artikel-Code noch im Bild beim Lagerplatz-Schritt
+  lastScan = {t, time: now};
+  const f = $("camFlash"); f.classList.add("on"); setTimeout(() => f.classList.remove("on"), 80);
+  submitStep(t);
+}
+let stream = null, scanTimer = null;
+const canvas = document.createElement("canvas"), cctx = canvas.getContext("2d", {willReadFrequently:true});
+const decoder = new ZXing.MultiFormatReader(); decoder.setHints(hints);
+function scanFrame(){
+  const v = $("video");
+  if (!camOn || v.readyState < 2 || !v.videoWidth) return;
+  // nur den Bereich des gelben Rahmens auswerten (sichtbarer Ausschnitt, mittleres Band)
+  const vw = v.videoWidth, vh = v.videoHeight, ew = v.clientWidth || vw, eh = v.clientHeight || vh;
+  const sc = Math.max(ew / vw, eh / vh), visW = ew / sc, visH = eh / sc;
+  const sx = (vw - visW) / 2 + visW * .05, sw = visW * .9, sy = (vh - visH) / 2 + visH * .25, sh = visH * .5;
+  const W = Math.min(1000, Math.round(sw)), H = Math.round(W * sh / sw);
+  canvas.width = W; canvas.height = H;
+  cctx.drawImage(v, sx, sy, sw, sh, 0, 0, W, H);
   try {
-    await reader.decodeFromConstraints({audio:false, video:{facingMode:{ideal:"environment"}, width:{ideal:1280}, height:{ideal:720}}}, $("video"), (res) => {
-      if (!res) return;
-      const t = res.getText(), now = Date.now();
-      if (t === lastCode && now - lastTime < 2500) return;   // gleichen Code nicht doppelt
-      lastCode = t; lastTime = now;
-      const f = $("flash"); f.classList.add("on"); requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove("on")));
-      addCode(t);
-    });
+    const bmp = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(canvas)));
+    const res = decoder.decodeWithState(bmp);
+    if (res) onCamResult(res.getText());
+  } catch(e){ /* kein Barcode in diesem Bild */ }
+}
+async function startCam(){
+  if (camOn) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return toast("Kamera nicht verfügbar – App über https:// öffnen.", true);
+  $("cam").hidden = false; $("camBtn").classList.add("solid"); $("camBtn").textContent = "Kamera aus"; camOn = camWanted = true;
+  updateCamState();
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({audio:false, video:{facingMode:{ideal:"environment"}, width:{ideal:1920}, height:{ideal:1080}}});
+    if (!camOn){ stream.getTracks().forEach(t => t.stop()); stream = null; return; }
+    const v = $("video"); v.srcObject = stream;
+    try { await v.play(); } catch(e){}
+    // Autofokus anfordern, falls das Gerät es unterstützt
+    try { const tr = stream.getVideoTracks()[0], cap = tr.getCapabilities ? tr.getCapabilities() : {}; if (cap.focusMode && cap.focusMode.includes("continuous")) await tr.applyConstraints({advanced:[{focusMode:"continuous"}]}); } catch(e){}
+    clearInterval(scanTimer); scanTimer = setInterval(scanFrame, 140);
   } catch(err){
     stopCam();
-    toast(err && err.name === "NotAllowedError" ? "Kamera-Zugriff verweigert. In den iPhone-Einstellungen unter Safari erlauben." : "Kamera konnte nicht gestartet werden.");
-    $("photoLbl").hidden = false;
+    toast(err && err.name === "NotAllowedError" ? (IOS ? "Kamera verweigert: Einstellungen → Safari → Kamera → Erlauben." : "Kamera-Zugriff verweigert.") : "Kamera konnte nicht gestartet werden.", true);
   }
 }
 function stopCam(){
-  running = false;
-  try { reader && reader.reset(); } catch(e){}
-  $("cam").hidden = true; $("camBtn").textContent = "Kamera starten"; $("camBtn").classList.remove("stop");
+  camOn = camWanted = false;
+  clearInterval(scanTimer); scanTimer = null;
+  try { stream && stream.getTracks().forEach(t => t.stop()); } catch(e){}
+  stream = null; try { $("video").srcObject = null; } catch(e){}
+  $("cam").hidden = true; $("camBtn").classList.remove("solid"); $("camBtn").textContent = "Kamera";
 }
-$("camBtn").addEventListener("click", () => { try { const A = window.AudioContext || window.webkitAudioContext; if (A && !beep.ctx) beep.ctx = new A(); beep.ctx && beep.ctx.resume(); } catch(e){} running ? stopCam() : startCam(); });
-document.addEventListener("visibilitychange", () => { if (document.hidden && running) stopCam(); });
+$("camBtn").addEventListener("click", () => camOn ? (stopCam(), focusIn()) : startCam());
+$("camAutoChk").checked = !!settings.camAuto;
+$("camAutoChk").addEventListener("change", e => { settings.camAuto = e.target.checked; saveSettings(); });
+$("iosHint").hidden = !IOS || navigator.standalone === true;
 
-/* ---------- Foto als Ausweg ---------- */
-$("photoInput").addEventListener("change", async e => {
-  const file = e.target.files[0]; e.target.value = ""; if (!file) return;
-  const url = URL.createObjectURL(file);
-  try {
-    const r = new ZXing.BrowserMultiFormatReader(hints);
-    const res = await r.decodeFromImageUrl(url);
-    addCode(res.getText());
-  } catch(err){ toast("Kein Barcode erkannt. Bitte näher und gerade fotografieren."); }
-  finally { URL.revokeObjectURL(url); }
-});
+/* ---------- Buchungsliste & Export ---------- */
+function openList(){
+  mode = null; show("vList"); pushView(); $("title").textContent = "Buchungen";
+  document.documentElement.style.removeProperty("--tc");
+  $("confirmBox").hidden = true; renderAll();
+}
+function filtered(){ return filter === "ALLE" ? bookings : bookings.filter(b => b.typ === filter); }
+function renderAll(){
+  const f = $("filters"); f.replaceChildren();
+  const opts = [["ALLE", "Alle"], ["EIN", "Einlagern"], ["AUS", "Auslagern"], ["INV", "Inventur"], ["UML", "Umlagern"]];
+  if (bookings.some(b => b.typ === "ERF")) opts.push(["ERF", "Erfassung"]);
+  for (const [k, n] of opts){
+    const c = k === "ALLE" ? bookings.length : bookings.filter(b => b.typ === k).length;
+    const b = mk("button", k === filter ? "on" : "", n + " (" + c + ")"); b.type = "button";
+    b.addEventListener("click", () => { filter = k; renderAll(); });
+    f.append(b);
+  }
+  renderList($("list"), filtered(), true);
+}
+$("listTile").addEventListener("click", openList);
+document.querySelectorAll(".tile[data-mode]").forEach(t => t.addEventListener("click", () => startMode(t.dataset.mode)));
 
-/* ---------- Export / Import ---------- */
-const stamp = () => { const d = new Date(), p = n => String(n).padStart(2, "0"); return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate()) + "_" + p(d.getHours()) + p(d.getMinutes()); };
+const p2 = n => String(n).padStart(2, "0");
+const stamp = () => { const d = new Date(); return d.getFullYear() + "-" + p2(d.getMonth()+1) + "-" + p2(d.getDate()) + "_" + p2(d.getHours()) + p2(d.getMinutes()); };
+const dDate = ts => { const d = new Date(ts); return p2(d.getDate()) + "." + p2(d.getMonth()+1) + "." + d.getFullYear(); };
+const dTime = ts => { const d = new Date(ts); return p2(d.getHours()) + ":" + p2(d.getMinutes()) + ":" + p2(d.getSeconds()); };
+const csvCell = v => { const s = String(v ?? ""); return /[;"\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+const numDE = n => String(n).replace(".", ",");
+
+function rowsForExport(){
+  return filtered().slice().reverse().map(b => ({
+    Vorgang: (MODES[b.typ] || MODES.ERF).name, Artikelnummer: b.artikel, Menge: b.menge,
+    Lagerplatz: b.platz, Von_Lagerplatz: b.von, Nach_Lagerplatz: b.nach, Datum: dDate(b.time), Uhrzeit: dTime(b.time)}));
+}
 async function deliver(blob, name){
-  const file = new File([blob], name, {type: blob.type});
-  if (navigator.canShare && navigator.canShare({files:[file]})){
-    try { await navigator.share({files:[file], title:name}); return; }
-    catch(e){ if (e && e.name === "AbortError") return; }
+  if (IOS){
+    const file = new File([blob], name, {type: blob.type});
+    if (navigator.canShare && navigator.canShare({files:[file]})){
+      try { await navigator.share({files:[file], title:name}); return; } catch(e){ if (e && e.name === "AbortError") return; }
+    }
   }
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast(IOS ? "Datei geöffnet – über Teilen → „In Dateien sichern“ speichern." : "Gespeichert in „Downloads“: " + name);
 }
-$("jsonBtn").addEventListener("click", () => {
-  if (!items.length) return toast("Die Liste ist leer.");
-  const data = {exportiert: new Date().toISOString(), anzahlPositionen: items.length,
-    artikel: items.map(i => ({barcode:i.code, menge:i.qty, lagerplatz:i.platz, zeit:new Date(i.time).toISOString()}))};
-  deliver(new Blob([JSON.stringify(data, null, 2)], {type:"application/json"}), "scans_" + stamp() + ".json");
+const exportName = ext => "lager_" + (filter === "ALLE" ? "" : MODES[filter].name.toLowerCase() + "_") + stamp() + "." + ext;
+$("csvBtn").addEventListener("click", () => {
+  const rows = rowsForExport(); if (!rows.length) return toast("Keine Buchungen zum Exportieren.", true);
+  const head = Object.keys(rows[0]);
+  const lines = [head.join(";"), ...rows.map(r => head.map(h => csvCell(h === "Menge" ? numDE(r[h]) : r[h])).join(";"))];
+  deliver(new Blob(["﻿" + lines.join("\r\n") + "\r\n"], {type:"text/csv;charset=utf-8"}), exportName("csv"));
 });
 $("xlsBtn").addEventListener("click", () => {
-  if (!items.length) return toast("Die Liste ist leer.");
-  const rows = items.slice().reverse().map(i => ({"Barcode": i.code, "Menge": i.qty, "Lagerplatz": i.platz, "Datum/Uhrzeit": new Date(i.time)}));
-  const ws = XLSX.utils.json_to_sheet(rows, {cellDates:true, dateNF:"dd.mm.yyyy hh:mm"});
-  // Barcode als Text speichern (führende Nullen bleiben erhalten)
-  for (let r = 1; r <= rows.length; r++){ const c = ws["A" + (r+1)]; if (c){ c.t = "s"; c.v = String(c.v); } }
-  ws["!cols"] = [{wch:20}, {wch:8}, {wch:18}, {wch:18}];
-  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Scans");
-  const out = XLSX.write(wb, {bookType:"xlsx", type:"array"});
-  deliver(new Blob([out], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}), "scans_" + stamp() + ".xlsx");
+  const rows = rowsForExport(); if (!rows.length) return toast("Keine Buchungen zum Exportieren.", true);
+  const ws = XLSX.utils.json_to_sheet(rows);
+  for (let r = 2; r <= rows.length + 1; r++) for (const c of ["B","D","E","F"]){ const x = ws[c + r]; if (x){ x.t = "s"; x.v = String(x.v); } }
+  ws["!cols"] = [{wch:11},{wch:20},{wch:8},{wch:14},{wch:14},{wch:14},{wch:11},{wch:9}];
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Buchungen");
+  deliver(new Blob([XLSX.write(wb, {bookType:"xlsx", type:"array"})], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}), exportName("xlsx"));
 });
-$("jsonInput").addEventListener("change", async e => {
-  const file = e.target.files[0]; e.target.value = ""; if (!file) return;
-  try {
-    const d = JSON.parse(await file.text());
-    const arr = Array.isArray(d) ? d : d.artikel;
-    if (!Array.isArray(arr)) throw 0;
-    let n = 0;
-    for (const a of arr){
-      const code = String(a.barcode ?? a.code ?? "").trim(); if (!code) continue;
-      items.push({id: Math.random().toString(36).slice(2), code, qty: Math.max(1, +a.menge || +a.qty || 1), platz: String(a.lagerplatz ?? a.platz ?? ""), time: Date.parse(a.zeit || a.time) || Date.now()});
-      n++;
-    }
-    items.sort((a, b) => b.time - a.time);
-    save(); render(); toast(n + " Einträge geladen.");
-  } catch(err){ toast("Die Datei ist keine gültige Scanner-JSON-Datei."); }
-});
-$("clearBtn").addEventListener("click", () => { if (!items.length) return toast("Die Liste ist schon leer."); $("confirmN").textContent = items.length; $("confirmBox").hidden = false; });
+$("clearBtn").addEventListener("click", () => { if (!bookings.length) return toast("Keine Buchungen vorhanden."); $("confirmN").textContent = bookings.length; $("confirmBox").hidden = false; });
 $("confirmNo").addEventListener("click", () => $("confirmBox").hidden = true);
-$("confirmYes").addEventListener("click", () => { items = []; save(); render(); $("confirmBox").hidden = true; $("last").hidden = true; toast("Liste geleert."); });
+$("confirmYes").addEventListener("click", () => { bookings = []; save(); renderCount(); renderAll(); $("confirmBox").hidden = true; toast("Alle Buchungen gelöscht."); });
 
-load();
-$("platzInput").value = settings.platz || "";
-$("mergeChk").checked = settings.merge !== false;
-render();
+load(); renderCount(); show("vMenu");
 })();
 </script>
 </body>
